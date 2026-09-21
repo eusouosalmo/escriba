@@ -1,0 +1,22 @@
+[project]
+name = "audio-transcriber"
+version = "0.1.0"
+description = "Baixa vídeo do YouTube ou Instagram e transcreve localmente"
+requires-python = ">=3.12"
+dependencies = [
+    # Fixado pelo projeto de propósito: a versão do sistema quebra com 403
+    # no YouTube depois de alguns meses. Ver .specs/project/STATE.md L-002.
+    "yt-dlp>=2026.8.19",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
