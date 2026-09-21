@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** M1 — Pipeline YouTube ponta a ponta
-**Status:** In Progress — F1 concluído em 2026-09-21; próximo é o F2 (download)
+**Status:** In Progress — F1 concluído em 2026-09-21; F2 concluído em 2026-09-21; próximo é o F3 (extração de áudio)
 
 ---
 
@@ -31,7 +31,7 @@ Cada capacidade vira uma skill do Claude Code. A natureza da skill é escolhida 
 - Convenções de código e contrato de saída dos scripts (JSON em stdout, erros em stderr, exit codes)
 - `.gitignore` e inicialização do repositório git
 
-**F2 — Skill de download (determinística)** - PLANNED
+**F2 — Skill de download (determinística)** - COMPLETE
 
 - Recebe URL, valida e identifica a plataforma
 - Baixa o melhor vídeo disponível via `yt-dlp` para uma pasta nomeada por data + slug do título

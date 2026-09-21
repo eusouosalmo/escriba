@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-09-21
-**Current Work:** F1 concluído e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F2 — skill de download.
+**Current Work:** F1 e F2 concluídos e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F3 — skill de extração de áudio.
 
 ---
 
@@ -27,6 +27,13 @@
 **Reason:** Diferença de qualidade medida no mesmo áudio de 3 min: o 1.7B escreveu "John Michell" (grafia correta), "seria desacelerada" (o 0.6B inverteu o sentido para "acelerada"), "descrevem" e "acendesse ela"; o 0.6B errou os quatro e truncou a última frase. O 0.6B, ainda assim, é bom e roda a 17,6× tempo real.
 **Trade-off:** O 1.7B usa ~3,0 GB e só cabe quando o Windows está consumindo pouca VRAM. Não é garantido.
 **Impact:** A skill precisa medir a VRAM livre antes de escolher, e o 0.6B precisa ser um caminho testado, não teórico.
+
+### AD-008: Vídeo limitado a 1080p por padrão (2026-09-21)
+
+**Decision:** O download usa teto de 1080p, com `--max-height 0` para quem quiser a melhor qualidade disponível.
+**Reason:** Medido no vídeo de teste de 10 min: sem teto, 481 MB em 7 minutos; com teto, 71 MB em 72 segundos. O material existe para ser transcrito e consultado, não arquivado em qualidade máxima.
+**Trade-off:** Quem quiser guardar o vídeo em 4K precisa pedir explicitamente.
+**Impact:** O teto fica registrado no `metadata.json`, para saber depois em que qualidade cada item foi salvo.
 
 ### AD-007: Rodar sem `-ngl` fixo, deixando o llama.cpp auto-ajustar o offload (2026-09-19)
 
