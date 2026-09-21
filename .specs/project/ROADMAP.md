@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** M1 — Pipeline YouTube ponta a ponta
-**Status:** Planning — engine validado na máquina em 2026-09-19
+**Status:** In Progress — F1 concluído em 2026-09-21; próximo é o F2 (download)
 
 ---
 
@@ -24,7 +24,7 @@ Cada capacidade vira uma skill do Claude Code. A natureza da skill é escolhida 
 
 ### Features
 
-**F1 — Fundação do projeto** - PLANNED
+**F1 — Fundação do projeto** - COMPLETE
 
 - Estrutura de diretórios (`scripts/`, `.claude/skills/`, `downloads/`)
 - Ambiente Python gerenciado por `uv` com `pyproject.toml`

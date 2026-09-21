@@ -1,7 +1,7 @@
 # State
 
-**Last Updated:** 2026-09-19
-**Current Work:** Inicialização concluída. Engine de transcrição pesquisado e validado na máquina. Pronto para especificar o F1 (fundação).
+**Last Updated:** 2026-09-21
+**Current Work:** F1 (fundação) concluído e publicado em github.com/eusouosalmo/audio-transcriber (privado). Próximo: F2 — skill de download.
 
 ---
 
