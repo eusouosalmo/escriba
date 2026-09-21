@@ -1,0 +1,32 @@
+# Artefatos de mídia e saídas — nunca versionar
+downloads/
+*.mp4
+*.mkv
+*.webm
+*.wav
+*.m4a
+*.opus
+
+# Modelos e binários de runtime
+models/
+vendor/
+*.gguf
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+
+# Ambiente
+.env
+.env.local
+
+# Editor / SO
+.DS_Store
+.idea/
+.vscode/
