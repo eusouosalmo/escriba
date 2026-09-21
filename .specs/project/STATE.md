@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-09-21
-**Current Work:** F1 e F2 concluídos e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F3 — skill de extração de áudio.
+**Current Work:** F1, F2 e F3 concluídos e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F4 — skill de transcrição, o núcleo do projeto.
 
 ---
 

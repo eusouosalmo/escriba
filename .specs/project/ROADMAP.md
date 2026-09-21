@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** M1 — Pipeline YouTube ponta a ponta
-**Status:** In Progress — F1 concluído em 2026-09-21; F2 concluído em 2026-09-21; próximo é o F3 (extração de áudio)
+**Status:** In Progress — F1 concluído em 2026-09-21; F1–F3 concluídos em 2026-09-21; próximo é o F4 (transcrição)
 
 ---
 
@@ -38,7 +38,7 @@ Cada capacidade vira uma skill do Claude Code. A natureza da skill é escolhida 
 - Grava `metadata.json` com URL, título, canal/autor, duração, data de publicação e data do download
 - Reporta erro de forma legível quando o link é privado, removido ou bloqueado por região
 
-**F3 — Skill de extração de áudio (determinística)** - PLANNED
+**F3 — Skill de extração de áudio (determinística)** - COMPLETE
 
 - Extrai o áudio do vídeo baixado via `ffmpeg` em WAV 16 kHz mono PCM
 - Reaproveita o arquivo existente se já tiver sido extraído
