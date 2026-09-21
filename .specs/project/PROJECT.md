@@ -1,4 +1,4 @@
-# Audio Transcriber
+# escriba
 
 **Vision:** Ferramenta operada por skills do Claude Code que, a partir de uma URL de YouTube ou Instagram, baixa o vídeo, transcreve o áudio localmente e salva a transcrição ao lado do vídeo.
 **For:** Uso pessoal do Salmo — capturar conteúdo em vídeo como texto pesquisável, sem depender de serviços externos.

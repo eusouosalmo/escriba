@@ -1,11 +1,11 @@
-# audio-transcriber
+# escriba
 
-Baixa um vídeo do YouTube ou do Instagram, transcreve o áudio localmente e guarda tudo junto — vídeo, áudio e transcrição na mesma pasta.
+O escriba registra por escrito o que foi falado. Este aqui faz isso com vídeo da internet: você dá um link do YouTube ou do Instagram, ele baixa, transcreve o áudio localmente e guarda tudo junto — vídeo, áudio e transcrição na mesma pasta.
 
 Operado por conversa, através de [skills do Claude Code](https://docs.claude.com/en/docs/claude-code/skills). Você manda o link, a ferramenta faz o resto:
 
 ```
-"transcreve esse link: https://youtube.com/watch?v=..."
+"escriba, pega esse link: https://youtube.com/watch?v=..."
 ```
 
 > **Status:** em construção. A arquitetura e o engine de transcrição estão definidos e validados na máquina-alvo; as skills ainda não foram implementadas. Veja o [roadmap](.specs/project/ROADMAP.md).
