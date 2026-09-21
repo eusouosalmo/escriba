@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-09-21
-**Current Work:** F1 (fundação) concluído e publicado em github.com/eusouosalmo/escriba (privado). Próximo: F2 — skill de download.
+**Current Work:** F1 concluído e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F2 — skill de download.
 
 ---
 
@@ -121,6 +121,13 @@ Nenhum.
 **Problem:** Mudar o offload muda o resultado numérico e, ocasionalmente, a palavra escolhida.
 **Solution:** Tratar a transcrição como etapa não reproduzível bit a bit e registrar no `metadata.json` o engine, o modelo, a quantização e os parâmetros usados.
 **Prevents:** Prometer determinismo que a skill não tem e perder a rastreabilidade de como um texto foi gerado.
+
+### L-009: `uv run` cai para o binário do sistema em silêncio quando o venv quebra (2026-09-21)
+
+**Context:** Ao renomear o diretório do projeto, o `.venv` quebrou (guarda caminhos absolutos). `uv run pytest` falhou explicitamente, mas `uv run yt-dlp --version` respondeu `2026.03.17` — a versão do sistema, justamente a que dá 403 no YouTube.
+**Problem:** A falha é silenciosa e disfarçada: o comando funciona, só que com o binário errado. Seria diagnosticado como "o yt-dlp voltou a quebrar" em vez de "o ambiente está quebrado".
+**Solution:** `rm -rf .venv && uv sync` restaura. Os scripts devem registrar a versão do yt-dlp que usaram no `metadata.json` e falhar com `ENVIRONMENT` quando ela for mais antiga que a mínima declarada.
+**Prevents:** Perseguir um bug de download inexistente quando o problema é o ambiente.
 
 ---
 
