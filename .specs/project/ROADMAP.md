@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** M1 — Pipeline YouTube ponta a ponta
-**Status:** In Progress — F1 concluído em 2026-09-21; F1–F3 concluídos em 2026-09-21; próximo é o F4 (transcrição)
+**Status:** In Progress — F1 concluído em 2026-09-21; F1–F4 concluídos em 2026-09-21; falta o F5 (orquestração) para fechar o M1
 
 ---
 
@@ -44,7 +44,7 @@ Cada capacidade vira uma skill do Claude Code. A natureza da skill é escolhida 
 - Reaproveita o arquivo existente se já tiver sido extraído
 - Falha explicitamente quando o vídeo não tem faixa de áudio
 
-**F4 — Skill de transcrição (híbrida)** - PLANNED
+**F4 — Skill de transcrição (híbrida)** - COMPLETE
 
 Dois engines intercambiáveis atrás de uma interface só. A escolha entre eles é o julgamento que justifica a skill ser híbrida:
 

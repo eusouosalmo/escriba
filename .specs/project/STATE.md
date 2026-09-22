@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-09-21
-**Current Work:** F1, F2 e F3 concluídos e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F4 — skill de transcrição, o núcleo do projeto.
+**Current Work:** F1 a F4 concluídos e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F5 — skill orquestradora, que encadeia as três.
 
 ---
 
@@ -136,6 +136,20 @@ Nenhum.
 **Solution:** `rm -rf .venv && uv sync` restaura. Os scripts devem registrar a versão do yt-dlp que usaram no `metadata.json` e falhar com `ENVIRONMENT` quando ela for mais antiga que a mínima declarada.
 **Prevents:** Perseguir um bug de download inexistente quando o problema é o ambiente.
 
+### L-010: O Qwen3-ASR ignora instruções de estilo no prompt (2026-09-21)
+
+**Context:** Chunks vizinhos escreveram "Em 1784" e "em mil setecentos e oitenta e quatro" para o mesmo tipo de conteúdo. Testamos pedir explicitamente "write all numbers using digits": a saída veio idêntica, caractere a caractere.
+**Problem:** É tentador tratar o modelo como um LLM que segue instrução. Ele é um modelo de reconhecimento de fala — o texto do prompt quase não influencia a forma da saída.
+**Solution:** Aceitar a variação como limitação conhecida e declará-la na skill. Normalizar por pós-processamento seria arriscado em português ("mais de mil cursos" não deve virar "1000 cursos").
+**Prevents:** Gastar tempo em engenharia de prompt onde ela não tem efeito.
+
+### L-011: Chunking deu 7x de ganho, mais que o estimado (2026-09-21)
+
+**Context:** Os mesmos 10 min de áudio levaram 295 s num bloco único e 42 s em 16 chunks servidos pelo `llama-server` — 14,3x tempo real.
+**Problem:** A estimativa anterior (L-007) falava em ~4x, contando só o efeito da atenção. Faltava o segundo fator.
+**Solution:** O ganho real combina contexto menor por chamada com o modelo carregado uma única vez. A CLI recarregaria o modelo a cada chunk e anularia boa parte do ganho.
+**Prevents:** Voltar a invocar a CLI por chunk achando que é equivalente ao servidor.
+
 ---
 
 ## Quick Tasks Completed
@@ -159,8 +173,8 @@ Nenhum.
 
 - [x] ~~Confirmar suporte a CUDA nesta máquina~~ — resolvido: binário CUDA 12.8 pré-compilado do llama.cpp (build b11056) roda na RTX 3050 sob WSL2 sem CUDA toolkit instalado
 - [x] ~~Medir qual modelo cabe nos 4 GB~~ — resolvido: 1.7B Q8_0 usa ~3,0 GB e cabe quando o Windows está leve; 0.6B Q8_0 usa ~1,8 GB e sempre cabe
-- [ ] Decidir onde o llama.cpp e os GGUF vão morar em definitivo (hoje estão no scratchpad e em `~/.cache/huggingface`, ~3,4 GB de modelos)
-- [ ] Validar o `Qwen3-ForcedAligner-0.6B` na prática antes de prometer `.srt` pelo caminho Qwen3
+- [x] ~~Decidir onde o llama.cpp vai morar~~ — resolvido: `~/.local/opt/llama.cpp` (1,1 GB), modelos seguem em `~/.cache/huggingface`
+- [x] ~~Validar o ForcedAligner~~ — resolvido: não existe em GGUF (só MLX/CoreML/transformers), usá-lo traria PyTorch de volta. O `.srt` passou a ter granularidade de bloco, via VAD
 - [ ] Testar a qualidade num Reel do Instagram de verdade (o teste foi com narração de YouTube sobre trilha sonora)
 
 ---
