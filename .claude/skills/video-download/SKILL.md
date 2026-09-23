@@ -1,6 +1,6 @@
 ---
 name: video-download
-description: Baixa um vídeo do YouTube para uma pasta própria em downloads/, com metadata.json registrando procedência. Use sempre que o usuário fornecer um link de vídeo e quiser baixá-lo, arquivá-lo ou preparar o material para transcrição — inclusive quando ele só colar a URL, ou disser coisas como "pega esse vídeo", "baixa esse link", "salva esse vídeo aí". É também o primeiro passo obrigatório de qualquer pedido de transcrição de vídeo do YouTube.
+description: Baixa um vídeo do YouTube ou do Instagram para uma pasta própria em downloads/, com metadata.json registrando procedência. Use sempre que o usuário fornecer um link de vídeo e quiser baixá-lo, arquivá-lo ou preparar o material para transcrição — inclusive quando ele só colar a URL, ou disser coisas como "pega esse vídeo", "baixa esse link", "salva esse vídeo aí". É também o primeiro passo obrigatório de qualquer pedido de transcrição de vídeo do YouTube.
 ---
 
 # Baixar vídeo
@@ -55,8 +55,12 @@ problema.
 
 ## Limites que valem avisar antes de tentar
 
-Só YouTube por enquanto; Instagram entra no próximo milestone. Só conteúdo público — vídeo
-privado, restrito ou que exija login vai falhar, e isso é escopo, não defeito. Uma URL por
-vez, sem playlists.
+YouTube e Instagram, só conteúdo público. Vídeo privado, story, perfil fechado ou qualquer
+coisa que exija login vai falhar, e isso é escopo, não defeito. Uma URL por vez, sem
+playlists nem carrosséis.
+
+O Instagram é notoriamente instável: ele muda sem aviso e quebra o extractor do yt-dlp. Se um
+link que deveria funcionar falhar com "não conseguiu ler a página", a causa mais provável é
+essa, e a dica vai sugerir atualizar o yt-dlp. Não é erro do usuário nem do link.
 
 Se o usuário pedir algo fora disso, diga o limite de cara em vez de tentar e falhar.

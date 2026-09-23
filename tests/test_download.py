@@ -34,6 +34,27 @@ class TestSlugify:
         assert download.slugify("日本語 🎬") == "sem-titulo"
 
 
+class TestDescribe:
+    """O Instagram não entrega título; o nome da pasta precisa sair de outro lugar."""
+
+    def test_prefers_the_title_when_the_source_has_one(self):
+        assert download.describe({"title": "Um título", "description": "legenda"}) == "Um título"
+
+    def test_falls_back_to_the_caption_when_there_is_no_title(self):
+        assert download.describe({"description": "Receita de pão"}) == "Receita de pão"
+
+    def test_keeps_only_the_first_line_of_a_long_caption(self):
+        caption = "Pão caseiro fofinho\n\n#receita #paocaseiro #comida @alguem"
+
+        assert download.describe({"description": caption}) == "Pão caseiro fofinho"
+
+    def test_uses_the_author_when_the_caption_is_empty(self):
+        assert download.describe({"description": "  ", "uploader": "cozinha_da_ana"}) == "cozinha_da_ana"
+
+    def test_falls_back_to_the_id_when_nothing_else_exists(self):
+        assert download.describe({"id": "CxYz123"}) == "CxYz123"
+
+
 class TestFolderName:
     def test_uses_the_publication_date_when_there_is_one(self):
         name = download.folder_name({"upload_date": "20200524", "title": "Buracos Negros"})
@@ -43,6 +64,18 @@ class TestFolderName:
         name = download.folder_name({"title": "Sem data"})
         assert name.endswith("-sem-data")
         assert len(name.split("-sem-data")[0]) == 10
+
+    def test_an_instagram_post_without_title_still_gets_a_readable_folder(self):
+        name = download.folder_name(
+            {"description": "Pão caseiro fofinho\n#receita", "id": "CxYz", "upload_date": "20240301"}
+        )
+
+        assert name == "2024-03-01-pao-caseiro-fofinho"
+
+    def test_a_post_with_only_emoji_still_gets_a_usable_name(self):
+        name = download.folder_name({"description": "🔥🍞", "uploader": "cozinha", "id": "CxYz"})
+
+        assert name.endswith("-cozinha")
 
 
 class TestVersionComparison:
@@ -66,6 +99,25 @@ class TestKnownFailures:
         description, hint = download.describe_failure(Exception(message))
         assert expected_fragment in description
         assert hint
+
+    @pytest.mark.parametrize(
+        ("message", "expected_fragment"),
+        [
+            ("ERROR: Login required to access this content", "exige login"),
+            ("ERROR: You need to log in to access this content", "pediu login"),
+            ("ERROR: Unable to extract shared data", "não conseguiu ler a página"),
+        ],
+    )
+    def test_instagram_failures_are_explained_in_terms_of_scope(self, message, expected_fragment):
+        description, hint = download.describe_failure(Exception(message))
+
+        assert expected_fragment in description
+        assert hint
+
+    def test_a_broken_instagram_extractor_suggests_updating_rather_than_blaming_the_user(self):
+        _, hint = download.describe_failure(Exception("ERROR: Unable to extract shared data"))
+
+        assert "yt-dlp" in hint
 
     def test_the_403_hint_points_at_the_real_cause(self):
         _, hint = download.describe_failure(Exception("HTTP Error 403: Forbidden"))
@@ -131,3 +183,4 @@ class TestCommandLine:
         payload = json.loads(result.stdout)
         assert payload["platform"] == "vimeo.com"
         assert "YouTube" in payload["hint"]
+        assert "Instagram" in payload["hint"]

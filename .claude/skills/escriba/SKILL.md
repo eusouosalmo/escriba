@@ -1,6 +1,6 @@
 ---
 name: escriba
-description: Pega um link de vídeo do YouTube e entrega o vídeo baixado com a transcrição ao lado, fazendo download, extração de áudio e transcrição local numa tacada só. Use sempre que o usuário mandar uma URL de vídeo querendo o conteúdo em texto — "escriba, pega esse link", "transcreve esse vídeo", "o que ele fala aqui", "quero o texto disso" — inclusive quando ele apenas colar a URL sem dizer o que quer. É o ponto de entrada natural do projeto; as skills de download, extração e transcrição existem para quando só uma etapa é necessária.
+description: Pega um link de vídeo do YouTube ou do Instagram e entrega o vídeo baixado com a transcrição ao lado, fazendo download, extração de áudio e transcrição local numa tacada só. Use sempre que o usuário mandar uma URL de vídeo querendo o conteúdo em texto — "escriba, pega esse link", "transcreve esse vídeo", "o que ele fala aqui", "quero o texto disso" — inclusive quando ele apenas colar a URL sem dizer o que quer. É o ponto de entrada natural do projeto; as skills de download, extração e transcrição existem para quando só uma etapa é necessária.
 ---
 
 # escriba
@@ -41,7 +41,7 @@ sabe o que aconteceu.
 O que vale fazer em cada caso:
 
 **Código 2, entrada inválida.** A URL não é suportada ou está malformada. Diga o limite ao
-usuário: só YouTube por enquanto, uma URL por vez, só conteúdo público.
+usuário: YouTube e Instagram, uma URL por vez, só conteúdo público.
 
 **Código 3, ambiente.** Falta uma ferramenta. Siga a dica — costuma ser `uv sync` ou instalar
 o ffmpeg — e só então tente de novo.
@@ -49,6 +49,10 @@ o ffmpeg — e só então tente de novo.
 **Código 1 no download.** Vídeo privado, removido ou bloqueado é escopo, não defeito: relate
 e pare. Se a dica falar em 403, o problema é o yt-dlp desatualizado, não o vídeo. Se falar em
 limite de taxa, **não repita a chamada** — insistir piora a situação; espere.
+
+No Instagram há uma causa a mais: o extractor quebra quando a plataforma muda. Se a dica
+sugerir atualizar o yt-dlp, é isso — e vale dizer ao usuário que o link dele provavelmente
+está certo.
 
 **Código 1 na transcrição.** Quase sempre é VRAM. O script registra em stderr quanto havia
 livre; se o usuário forçou o modelo grande num momento apertado, refaça deixando a escolha

@@ -1,4 +1,4 @@
-"""Baixa um vídeo do YouTube para uma pasta própria e registra sua procedência.
+"""Baixa um vídeo do YouTube ou do Instagram e registra sua procedência.
 
 Usa o yt-dlp como biblioteca, e não como binário. A diferença importa: um
 `yt-dlp` chamado pelo PATH pode silenciosamente ser o do sistema, que quebra com
@@ -40,6 +40,9 @@ SUPPORTED_HOSTS = {
     "m.youtube.com": "youtube",
     "music.youtube.com": "youtube",
     "youtu.be": "youtube",
+    "instagram.com": "instagram",
+    "www.instagram.com": "instagram",
+    "m.instagram.com": "instagram",
 }
 
 # Falhas que sabemos diagnosticar. A dica é o que diferencia "deu erro" de
@@ -67,8 +70,34 @@ KNOWN_FAILURES: list[tuple[str, str, str]] = [
     ),
     (
         "http error 429",
-        "O YouTube limitou a taxa de requisições.",
+        "A plataforma limitou a taxa de requisições.",
         "espere alguns minutos antes de tentar de novo",
+    ),
+    (
+        "login required",
+        "Este conteúdo exige login.",
+        "só funciona com conteúdo público; stories e perfis privados estão fora do escopo",
+    ),
+    (
+        "requested content is not available",
+        "O Instagram não disponibilizou este conteúdo.",
+        (
+            "confira se o link abre numa janela anônima do navegador; se abrir, "
+            "o extractor do yt-dlp pode ter quebrado e vale atualizá-lo"
+        ),
+    ),
+    (
+        "you need to log in",
+        "O Instagram pediu login para acessar este conteúdo.",
+        "só funciona com conteúdo público",
+    ),
+    (
+        "unable to extract shared data",
+        "O extractor do Instagram não conseguiu ler a página.",
+        (
+            "o Instagram costuma mudar sem aviso e quebrar o extractor; "
+            "atualize com `uv lock --upgrade-package yt-dlp && uv sync`"
+        ),
     ),
     (
         "http error 403",
@@ -113,7 +142,7 @@ def identify_platform(url: str) -> str:
         fail(
             f"{parsed.netloc} não é uma origem suportada",
             code=USAGE,
-            hint="no momento só o YouTube é suportado; o Instagram entra no próximo milestone",
+            hint="são suportados YouTube e Instagram, apenas conteúdo público",
             platform=parsed.netloc,
         )
     return platform
@@ -146,6 +175,28 @@ def slugify(text: str, *, limit: int = 60) -> str:
     return slug or "sem-titulo"
 
 
+def describe(info: dict) -> str:
+    """Encontra algo legível para dar nome à pasta.
+
+    O YouTube sempre entrega um título. O Instagram não: o que existe é a
+    legenda do post, que pode ser longa, vazia ou só emoji. A busca desce do
+    mais informativo ao mais garantido, e o id sempre existe — assim o nome
+    continua previsível mesmo quando nada mais vem.
+    """
+    for key in ("title", "description", "uploader", "channel", "id"):
+        value = (info.get(key) or "").strip()
+        if not value:
+            continue
+        # A primeira linha da legenda costuma ser a frase que resume o post;
+        # o resto vira hashtag e menção, que não ajudam a identificar nada.
+        first_line = value.splitlines()[0].strip()
+        # Uma legenda só de emoji não sobrevive à transliteração e viraria um
+        # nome vazio, então ela conta como ausente e a busca continua.
+        if first_line and slugify(first_line) != "sem-titulo":
+            return first_line
+    return str(info.get("id") or "")
+
+
 def folder_name(info: dict) -> str:
     """Nomeia pela data de publicação, que é o que ordena um acervo com sentido.
 
@@ -157,7 +208,7 @@ def folder_name(info: dict) -> str:
         date = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:]}"
     else:
         date = datetime.now(UTC).strftime("%Y-%m-%d")
-    return f"{date}-{slugify(info.get('title') or '')}"
+    return f"{date}-{slugify(describe(info))}"
 
 
 def describe_failure(error: Exception) -> tuple[str, str | None]:

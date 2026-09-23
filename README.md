@@ -8,7 +8,7 @@ Operado por conversa, através de [skills do Claude Code](https://docs.claude.co
 "escriba, pega esse link: https://youtube.com/watch?v=..."
 ```
 
-> **Status:** o pipeline do YouTube funciona de ponta a ponta. O Instagram é o próximo milestone. Veja o [roadmap](.specs/project/ROADMAP.md).
+> **Status:** funciona de ponta a ponta com YouTube e Instagram públicos. Veja o [roadmap](.specs/project/ROADMAP.md).
 
 ---
 
@@ -76,7 +76,7 @@ Uma nota que vale o aviso: **o `yt-dlp` precisa estar atualizado**. Versões com
 
 ## Escopo
 
-**Entra:** YouTube público (Instagram é o próximo milestone), download, extração, transcrição, saída em `.txt`, `.srt` e `.json`.
+**Entra:** YouTube e Instagram públicos, download, extração, transcrição, saída em `.txt`, `.srt` e `.json`.
 
 Dois limites herdados de rodar tudo localmente: as legendas têm granularidade de bloco (~30 s cada), boas para navegar o conteúdo e não para legendar vídeo profissionalmente; e o estilo pode variar entre blocos, com um trecho escrevendo "1784" e o seguinte "mil setecentos e oitenta e quatro". Blocos são chamadas independentes, e o modelo é de reconhecimento de fala, não de instrução — pedir o formato no prompt não muda nada, o que foi testado.
 
