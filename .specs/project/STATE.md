@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-09-21
-**Current Work:** F1 a F4 concluídos e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: F5 — skill orquestradora, que encadeia as três.
+**Current Work:** M1 completo — F1 a F5 concluídos, pipeline do YouTube funcionando de ponta a ponta e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: M2 — F6, suporte a Instagram.
 
 ---
 
@@ -143,6 +143,13 @@ Nenhum.
 **Solution:** Aceitar a variação como limitação conhecida e declará-la na skill. Normalizar por pós-processamento seria arriscado em português ("mais de mil cursos" não deve virar "1000 cursos").
 **Prevents:** Gastar tempo em engenharia de prompt onde ela não tem efeito.
 
+### L-012: A inconsistência entre blocos atinge a pontuação, não só os números (2026-09-23)
+
+**Context:** Num vídeo de receita, o primeiro bloco saiu inteiro sem pontuação ("Oi gente a receita de hoje é de um pão caseiro bem fácil de fazer bem gostoso...") e o segundo, com pontuação impecável.
+**Problem:** L-010 tratava a variação como questão de formato numérico. Na prática ela alcança a pontuação inteira, o que é muito mais visível para quem lê.
+**Solution:** Declarar o limite na skill e no README. O modelo maior reduziria o efeito, mas 1.7B só cabe quando o Windows está consumindo pouca VRAM.
+**Prevents:** Prometer transcrição uniforme e ser desmentido pelo primeiro vídeo de fala espontânea.
+
 ### L-011: Chunking deu 7x de ganho, mais que o estimado (2026-09-21)
 
 **Context:** Os mesmos 10 min de áudio levaram 295 s num bloco único e 42 s em 16 chunks servidos pelo `llama-server` — 14,3x tempo real.
@@ -175,7 +182,8 @@ Nenhum.
 - [x] ~~Medir qual modelo cabe nos 4 GB~~ — resolvido: 1.7B Q8_0 usa ~3,0 GB e cabe quando o Windows está leve; 0.6B Q8_0 usa ~1,8 GB e sempre cabe
 - [x] ~~Decidir onde o llama.cpp vai morar~~ — resolvido: `~/.local/opt/llama.cpp` (1,1 GB), modelos seguem em `~/.cache/huggingface`
 - [x] ~~Validar o ForcedAligner~~ — resolvido: não existe em GGUF (só MLX/CoreML/transformers), usá-lo traria PyTorch de volta. O `.srt` passou a ter granularidade de bloco, via VAD
-- [ ] Testar a qualidade num Reel do Instagram de verdade (o teste foi com narração de YouTube sobre trilha sonora)
+- [ ] Testar a qualidade num Reel do Instagram de verdade (os testes foram com YouTube: narração sobre trilha sonora e fala espontânea de receita)
+- [ ] Avaliar se vale reduzir o alvo dos blocos: em fala contínua sem pausas um bloco chegou a 50 s, e blocos longos concentram a variação de estilo
 
 ---
 

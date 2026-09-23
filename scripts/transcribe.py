@@ -362,6 +362,14 @@ def write_outputs(folder: Path, chunks: list[Chunk], language: str | None, meta:
     )
 
 
+def read_previous(folder: Path) -> dict:
+    """Recupera o que a transcrição anterior registrou, para poder repeti-lo."""
+    try:
+        return json.loads((folder / "transcript.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
 def update_metadata(folder: Path, meta: dict) -> None:
     path = folder / "metadata.json"
     try:
@@ -409,7 +417,20 @@ def main() -> None:
     transcript = folder / "transcript.txt"
     if transcript.exists() and not args.force:
         log(f"transcrição já existe em {transcript}")
-        succeed(folder=str(folder), transcript=str(transcript), reused=True)
+        # Reaproveitar precisa responder o mesmo que transcrever, senão quem
+        # encadeia as etapas recebe um resultado mutilado justamente no caminho
+        # mais comum — o de rodar de novo sobre material já processado.
+        previous = read_previous(folder)
+        succeed(
+            folder=str(folder),
+            transcript=str(transcript),
+            srt=str(folder / "transcript.srt"),
+            json=str(folder / "transcript.json"),
+            model=previous.get("transcription_model"),
+            language=previous.get("language"),
+            chunks=previous.get("transcription_chunks"),
+            reused=True,
+        )
 
     free = free_vram_mib()
     repo, model_name, quantization = choose_model(free, args.model)

@@ -8,7 +8,7 @@ Operado por conversa, através de [skills do Claude Code](https://docs.claude.co
 "escriba, pega esse link: https://youtube.com/watch?v=..."
 ```
 
-> **Status:** em construção. A arquitetura e o engine de transcrição estão definidos e validados na máquina-alvo; as skills ainda não foram implementadas. Veja o [roadmap](.specs/project/ROADMAP.md).
+> **Status:** o pipeline do YouTube funciona de ponta a ponta. O Instagram é o próximo milestone. Veja o [roadmap](.specs/project/ROADMAP.md).
 
 ---
 
@@ -34,10 +34,12 @@ Cada etapa é uma skill. A natureza de cada uma segue o que ela realmente exige:
 
 | Skill | Natureza | Por quê |
 |---|---|---|
-| Download | determinística | Dada uma URL, existe um resultado certo. Script faz, modelo só invoca. |
-| Extração de áudio | determinística | `ffmpeg` com parâmetros fixos. Não há o que decidir. |
-| Transcrição | **híbrida** | O núcleo é um script, mas escolher engine, modelo e janela depende do áudio e da VRAM livre no momento. |
-| Orquestração | **não determinística** | Encadear, retomar o que já foi feito e reagir a falha parcial é julgamento, não roteiro. |
+| `video-download` | determinística | Dada uma URL, existe um resultado certo. Script faz, modelo só invoca. |
+| `audio-extraction` | determinística | `ffmpeg` com parâmetros fixos. Não há o que decidir. |
+| `transcription` | **híbrida** | O núcleo é um script, mas o modelo é escolhido pela VRAM livre medida na hora. |
+| `escriba` | **não determinística** | Encadear é trivial; reagir a uma falha no meio é julgamento. |
+
+Cada etapa reconhece o próprio trabalho feito, então **retomar uma execução interrompida é apenas rodar de novo**: o que já existe responde em segundos e só o que falta é executado.
 
 ## Engine de transcrição
 
@@ -54,12 +56,13 @@ RTX 3050 Laptop (4 GB nominais) sob WSL2, com narração em português brasileir
 | Qwen3-ASR-0.6B Q8_0 | 3 min | 10,2 s | 17,6× tempo real | 3653 MiB |
 | Qwen3-ASR-1.7B Q8_0 | 3 min | 21,6 s | 8,3× tempo real | 3894 MiB |
 | Qwen3-ASR-1.7B Q8_0 | 10 min | 294,9 s | 2,05× tempo real | 3848 MiB |
+| Qwen3-ASR-0.6B Q8_0, em blocos | 10 min | **42,1 s** | **14,3× tempo real** | 3653 MiB |
 
 Três coisas que essas medições ensinaram, e que estão embutidas no design:
 
 - **A VRAM livre não é a VRAM da placa.** O Windows consome de 750 MiB a 2 GB da GPU do notebook, variando com o que está aberto. O modelo é escolhido medindo o espaço livre na hora, não pelo total da placa.
 - **O limite do áudio longo é o context window, não a memória.** Dez minutos falham com o contexto padrão enquanto a VRAM está folgada — ampliar o contexto resolve, reduzir o modelo não.
-- **Chunking é performance, não só segurança.** A velocidade cai de 8,3× para 2,05× conforme o bloco cresce. Processar em janelas de ~3 min é cerca de 4× mais rápido que mandar o áudio inteiro.
+- **Chunking é performance, não só segurança.** Os mesmos 10 minutos levam 294,9 s num bloco único e 42,1 s em 16 blocos — 7× mais rápido. O ganho combina contexto menor por chamada com o modelo carregado uma vez só, num `llama-server` que serve todos os blocos.
 
 ## Requisitos
 
@@ -73,7 +76,9 @@ Uma nota que vale o aviso: **o `yt-dlp` precisa estar atualizado**. Versões com
 
 ## Escopo
 
-**Entra:** YouTube e Instagram públicos, download, extração, transcrição com timestamps, saída em `.txt`, `.srt` e `.json`.
+**Entra:** YouTube público (Instagram é o próximo milestone), download, extração, transcrição, saída em `.txt`, `.srt` e `.json`.
+
+Dois limites herdados de rodar tudo localmente: as legendas têm granularidade de bloco (~30 s cada), boas para navegar o conteúdo e não para legendar vídeo profissionalmente; e o estilo pode variar entre blocos, com um trecho escrevendo "1784" e o seguinte "mil setecentos e oitenta e quatro". Blocos são chamadas independentes, e o modelo é de reconhecimento de fala, não de instrução — pedir o formato no prompt não muda nada, o que foi testado.
 
 **Não entra (por ora):** diarização de falantes, conteúdo que exija login, transcrição via API paga, interface gráfica, processamento em lote, tradução ou resumo.
 

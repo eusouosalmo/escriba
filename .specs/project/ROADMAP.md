@@ -1,7 +1,7 @@
 # Roadmap
 
-**Current Milestone:** M1 — Pipeline YouTube ponta a ponta
-**Status:** In Progress — F1 concluído em 2026-09-21; F1–F4 concluídos em 2026-09-21; falta o F5 (orquestração) para fechar o M1
+**Current Milestone:** M2 — Instagram
+**Status:** M1 completo em 2026-09-23; M2 não iniciado — F1 concluído em 2026-09-21; M1 fechado em 2026-09-23: link do YouTube entra, pasta com vídeo e transcrição sai
 
 ---
 
@@ -63,7 +63,7 @@ Capacidades:
 
 **F2 — nota de implementação descoberta na validação:** o download precisa usar o `yt-dlp` do projeto (não o do sistema), passar `--js-runtimes node` e baixar o arquivo completo — `--download-sections` é rejeitado com 403 pelo YouTube.
 
-**F5 — Skill orquestradora (não determinística)** - PLANNED
+**F5 — Skill orquestradora (não determinística)** - COMPLETE
 
 - Ponto de entrada em linguagem natural: "transcreve esse link"
 - Encadeia download → extração → transcrição, retomando de onde parou se a pasta já existir parcialmente
