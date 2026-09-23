@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-09-21
-**Current Work:** M1 completo — F1 a F5 concluídos, pipeline do YouTube funcionando de ponta a ponta e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: M2 — F6, suporte a Instagram.
+**Current Work:** M1 completo. F6 (Instagram) implementado e testado unitariamente, mas ainda não validado contra uma URL real — falta um link de Reel público e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: M2 — F6, suporte a Instagram.
 
 ---
 

@@ -1,7 +1,7 @@
 # Roadmap
 
 **Current Milestone:** M2 — Instagram
-**Status:** M1 completo em 2026-09-23; M2 não iniciado — F1 concluído em 2026-09-21; M1 fechado em 2026-09-23: link do YouTube entra, pasta com vídeo e transcrição sai
+**Status:** M1 completo em 2026-09-23; M2 implementado e aguardando validação com link real — F1 concluído em 2026-09-21; M1 fechado em 2026-09-23: link do YouTube entra, pasta com vídeo e transcrição sai
 
 ---
 
@@ -78,11 +78,12 @@ Capacidades:
 
 ### Features
 
-**F6 — Suporte a Instagram** - PLANNED
+**F6 — Suporte a Instagram** - IN PROGRESS
 
-- Extensão da skill de download para URLs do Instagram
-- Normalização de metadados (Instagram não expõe os mesmos campos do YouTube; título costuma ser ausente ou derivado da legenda)
-- Tratamento explícito de rate limit e de conteúdo que exige login
+- Extensão da skill de download para URLs do Instagram — feito
+- Normalização de metadados: o nome da pasta desce por título, legenda, autor e id até achar algo que sobreviva à transliteração — feito
+- Tratamento explícito de rate limit, exigência de login e extractor quebrado — feito
+- **Pendente: validação contra um link real.** O código está coberto por testes, mas nenhuma URL do Instagram foi baixada de verdade. Enquanto isso não acontecer, o F6 não é dado como concluído.
 
 ---
 
