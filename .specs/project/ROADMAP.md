@@ -1,7 +1,7 @@
 # Roadmap
 
-**Current Milestone:** M2 — Instagram
-**Status:** M1 completo em 2026-09-23; M2 implementado e aguardando validação com link real — F1 concluído em 2026-09-21; M1 fechado em 2026-09-23: link do YouTube entra, pasta com vídeo e transcrição sai
+**Current Milestone:** nenhum em andamento — M1 e M2 entregues
+**Status:** M1 e M2 completos. YouTube e Instagram validados contra conteúdo real — F1 concluído em 2026-09-21; M1 fechado em 2026-09-23: link do YouTube entra, pasta com vídeo e transcrição sai
 
 ---
 
@@ -78,12 +78,14 @@ Capacidades:
 
 ### Features
 
-**F6 — Suporte a Instagram** - IN PROGRESS
+**F6 — Suporte a Instagram** - COMPLETE
 
 - Extensão da skill de download para URLs do Instagram — feito
 - Normalização de metadados: o nome da pasta desce por título, legenda, autor e id até achar algo que sobreviva à transliteração — feito
 - Tratamento explícito de rate limit, exigência de login e extractor quebrado — feito
-- **Pendente: validação contra um link real.** O código está coberto por testes, mas nenhuma URL do Instagram foi baixada de verdade. Enquanto isso não acontecer, o F6 não é dado como concluído.
+- Carrossel: um post mistura fotos e vídeos, e o yt-dlp aborta o conjunto ao esbarrar numa foto. As posições com vídeo são escolhidas de antemão, e cada uma vira uma pasta — feito
+- Tolerância a item defeituoso: um vídeo mudo no meio do post não derruba os outros — feito
+- Validado em 2026-09-24 contra um post real de 11 itens (7 vídeos, 1 sem faixa de áudio, nenhum com fala)
 
 ---
 

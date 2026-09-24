@@ -1,7 +1,7 @@
 # State
 
 **Last Updated:** 2026-09-21
-**Current Work:** M1 completo. F6 (Instagram) implementado e testado unitariamente, mas ainda não validado contra uma URL real — falta um link de Reel público e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: M2 — F6, suporte a Instagram.
+**Current Work:** M1 e M2 entregues. YouTube e Instagram validados contra conteúdo real. Pendente: testar as skills em uso real, por um modelo sem o contexto da sessão em que foram escritas e publicado em github.com/eusouosalmo/escriba (privado). Projeto renomeado de audio-transcriber para escriba em 2026-09-21. Próximo: M2 — F6, suporte a Instagram.
 
 ---
 
@@ -157,6 +157,27 @@ Nenhum.
 **Solution:** O ganho real combina contexto menor por chamada com o modelo carregado uma única vez. A CLI recarregaria o modelo a cada chunk e anularia boa parte do ganho.
 **Prevents:** Voltar a invocar a CLI por chunk achando que é equivalente ao servidor.
 
+### L-013: Áudio sem fala faz o modelo inventar texto (2026-09-24)
+
+**Context:** Os 7 vídeos de um post do Instagram não tinham narração. O Qwen3-ASR respondeu com "嗯" repetido centenas de vezes num deles e "嗯。" nos outros.
+**Problem:** Era o defeito mais perigoso do projeto: uma transcrição inventada parece legítima. O detector de repetição não pegava, porque dividia o texto por frases e a alucinação não tem pontuação alguma.
+**Solution:** Reconhecer texto degenerado por dois sinais independentes de idioma — pobreza de caracteres distintos num texto longo, e densidade baixa demais (dois caracteres para trinta segundos de áudio). O resultado sai vazio e o pipeline declara `speech: false`.
+**Prevents:** Entregar texto plausível e falso, que é pior que não entregar nada.
+
+### L-014: Um item ruim não pode derrubar o lote (2026-09-24)
+
+**Context:** O sexto vídeo de um carrossel de sete não tinha faixa de áudio, e a falha abortou o pipeline inteiro — descartando os cinco que já haviam sido transcritos.
+**Problem:** A propagação de falha que é correta para um item só vira destrutiva quando há vários.
+**Solution:** Com mais de um vídeo, a falha de um item o descarta e o processamento segue; a falha de ambiente continua abortando, porque se repetiria em todos.
+**Prevents:** Perder trabalho concluído por causa de um item defeituoso no fim da fila.
+
+### L-015: O teste real encontra o que o teste unitário não alcança (2026-09-24)
+
+**Context:** O F6 tinha cobertura de testes e passava. O primeiro link real expôs três defeitos — carrossel abortado por uma foto, lote derrubado por um item mudo, e alucinação em áudio sem fala.
+**Problem:** Os testes cobriam o que eu havia imaginado; nenhum deles imaginava um post com 11 itens misturando foto e vídeo, um mudo e nenhum com fala.
+**Solution:** Não dar por concluída uma integração com serviço externo antes de rodá-la contra conteúdo real, e transformar cada defeito encontrado em teste.
+**Prevents:** Confundir "passa nos testes" com "funciona".
+
 ---
 
 ## Quick Tasks Completed
@@ -182,7 +203,7 @@ Nenhum.
 - [x] ~~Medir qual modelo cabe nos 4 GB~~ — resolvido: 1.7B Q8_0 usa ~3,0 GB e cabe quando o Windows está leve; 0.6B Q8_0 usa ~1,8 GB e sempre cabe
 - [x] ~~Decidir onde o llama.cpp vai morar~~ — resolvido: `~/.local/opt/llama.cpp` (1,1 GB), modelos seguem em `~/.cache/huggingface`
 - [x] ~~Validar o ForcedAligner~~ — resolvido: não existe em GGUF (só MLX/CoreML/transformers), usá-lo traria PyTorch de volta. O `.srt` passou a ter granularidade de bloco, via VAD
-- [ ] Testar a qualidade num Reel do Instagram de verdade (os testes foram com YouTube: narração sobre trilha sonora e fala espontânea de receita)
+- [ ] Testar a transcrição num Reel do Instagram **com fala** — o post validado não tinha narração, então a qualidade do ASR nessa origem segue não medida
 - [ ] Avaliar se vale reduzir o alvo dos blocos: em fala contínua sem pausas um bloco chegou a 50 s, e blocos longos concentram a variação de estilo
 
 ---
