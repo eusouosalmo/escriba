@@ -74,6 +74,33 @@ class TestChunkPlanning:
         assert all(c.duration <= 120.0 + 0.01 for c in chunks)
         assert abs(chunks[-1].end - 400.0) < 0.01
 
+    def test_falls_back_to_the_quietest_point_when_no_real_pause_exists(self):
+        """Reel com trilha sonora nunca silencia de fato; cortar no seco parte palavras."""
+        chunks = transcribe.plan_chunks(
+            120.0, [], target=30.0, maximum=45.0, weak_silences=[(38.0, 38.2)]
+        )
+
+        assert chunks[0].end == 38.1, "deveria cortar no ponto mais quieto, não no limite"
+
+    def test_a_real_pause_wins_over_a_merely_quiet_moment(self):
+        chunks = transcribe.plan_chunks(
+            120.0, [(35.0, 36.0)], target=30.0, maximum=45.0, weak_silences=[(31.0, 31.1)]
+        )
+
+        assert chunks[0].end == 35.5
+
+    def test_cuts_hard_only_when_neither_kind_of_pause_is_available(self):
+        chunks = transcribe.plan_chunks(200.0, [], target=30.0, maximum=45.0, weak_silences=[])
+
+        assert chunks[0].end == 45.0
+
+    def test_does_not_leave_a_sliver_at_the_end(self):
+        """Uma sobra de dois segundos como chunk próprio não ajuda ninguém."""
+        chunks = transcribe.plan_chunks(47.0, [], target=30.0, maximum=45.0)
+
+        assert len(chunks) == 1
+        assert chunks[0].end == 47.0
+
     def test_audio_shorter_than_the_target_stays_in_one_piece(self):
         chunks = transcribe.plan_chunks(12.0, [], target=30.0, maximum=120.0)
 

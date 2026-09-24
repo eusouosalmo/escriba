@@ -41,11 +41,16 @@ MODELS = [
     ("ggml-org/Qwen3-ASR-0.6B-GGUF:Q8_0", "Qwen3-ASR-0.6B", "Q8_0", 1900),
 ]
 
+# Duas leituras do mesmo áudio. A primeira acha pausa de verdade; a segunda,
+# mais permissiva, acha o ponto mais quieto quando há música por baixo da fala
+# e nenhum silêncio absoluto existe — o caso de qualquer Reel com trilha.
 SILENCE_NOISE_DB = -30
 SILENCE_MIN_DURATION = 0.35
+WEAK_NOISE_DB = -18
+WEAK_MIN_DURATION = 0.12
 
 DEFAULT_TARGET = 30.0
-DEFAULT_MAXIMUM = 120.0
+DEFAULT_MAXIMUM = 45.0
 
 PROMPT = "Transcribe the audio."
 ASR_PATTERN = re.compile(r"<asr_text>(.*?)(?:</asr_text>|$)", re.DOTALL)
@@ -114,11 +119,15 @@ def choose_model(free_mib: int | None, requested: str | None = None) -> tuple[st
 # ------------------------------------------------------------------- vad
 
 
-def detect_silences(audio: Path) -> list[tuple[float, float]]:
+def detect_silences(
+    audio: Path,
+    noise_db: int = SILENCE_NOISE_DB,
+    min_duration: float = SILENCE_MIN_DURATION,
+) -> list[tuple[float, float]]:
     result = subprocess.run(
         [
             "ffmpeg", "-v", "info", "-i", str(audio),
-            "-af", f"silencedetect=noise={SILENCE_NOISE_DB}dB:d={SILENCE_MIN_DURATION}",
+            "-af", f"silencedetect=noise={noise_db}dB:d={min_duration}",
             "-f", "null", "-",
         ],
         capture_output=True,
@@ -151,32 +160,41 @@ def plan_chunks(
     silences: list[tuple[float, float]],
     target: float = DEFAULT_TARGET,
     maximum: float = DEFAULT_MAXIMUM,
+    weak_silences: list[tuple[float, float]] | None = None,
 ) -> list[Chunk]:
     """Transforma silêncios em fronteiras de chunk.
 
     O corte cai no meio do silêncio, que é o ponto mais seguro: longe da última
-    palavra de um lado e da primeira do outro. Acumula trechos até passar do
-    alvo; só quando não há silêncio algum por tempo demais é que corta no seco,
-    o que acontece em trilha sonora contínua.
+    palavra de um lado e da primeira do outro. A busca aceita a primeira pausa
+    depois do alvo e, se não houver nenhuma antes do limite, recorre às pausas
+    fracas — os pontos mais quietos de um áudio que nunca silencia de fato.
+
+    Cortar no seco é o último recurso, porque partir uma palavra ao meio
+    estraga o reconhecimento dos dois lados do corte.
     """
-    boundaries = [(start + end) / 2 for start, end in silences if 0 < start < duration]
+
+    def midpoints(pairs: list[tuple[float, float]]) -> list[float]:
+        return sorted((start + end) / 2 for start, end in pairs if 0 < start < duration)
+
+    strong = midpoints(silences)
+    weak = midpoints(weak_silences or [])
 
     chunks: list[Chunk] = []
     position = 0.0
-    for boundary in boundaries:
-        if boundary - position < target:
-            continue
-        while boundary - position > maximum:
-            chunks.append(Chunk(position, position + maximum))
-            position += maximum
-        chunks.append(Chunk(position, boundary))
-        position = boundary
+    while duration - position > 0.1:
+        limit = position + maximum
+        window = (position + target, limit)
+        candidates = [b for b in strong if window[0] <= b <= window[1]]
+        if not candidates:
+            candidates = [b for b in weak if window[0] <= b <= window[1]]
 
-    while duration - position > maximum:
-        chunks.append(Chunk(position, position + maximum))
-        position += maximum
-    if duration - position > 0.1:
-        chunks.append(Chunk(position, duration))
+        end = candidates[0] if candidates else min(limit, duration)
+        # Uma sobra minúscula no fim vira um chunk de dois segundos sem ganho
+        # algum; é melhor deixá-la no anterior.
+        if duration - end < target / 3:
+            end = duration
+        chunks.append(Chunk(position, end))
+        position = end
 
     return chunks
 
@@ -471,7 +489,8 @@ def main() -> None:
 
     duration = audio_duration(audio)
     silences = detect_silences(audio)
-    chunks = plan_chunks(duration, silences, args.target, args.maximum)
+    weak = detect_silences(audio, WEAK_NOISE_DB, WEAK_MIN_DURATION)
+    chunks = plan_chunks(duration, silences, args.target, args.maximum, weak)
     log(f"{duration:.0f}s de áudio em {len(chunks)} chunks (mediana alvo {args.target:g}s)")
 
     workdir = folder / ".chunks"

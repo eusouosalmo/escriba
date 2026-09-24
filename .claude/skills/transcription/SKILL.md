@@ -23,8 +23,11 @@ Opções que existem por um motivo:
 - `--model Qwen3-ASR-1.7B` — força o modelo maior. Por padrão a escolha é pela VRAM livre
   medida na hora, e o 1.7B só entra quando há uns 3,1 GB livres. Forçar num momento de pouca
   memória faz o servidor morrer ao subir.
-- `--target 15` — chunks menores dão legendas mais granulares. Aumente para 60 ou mais se o
+- `--target 15` — blocos menores dão legendas mais granulares. Aumente para 60 ou mais se o
   que importa é o texto corrido, não a sincronia.
+- `--maximum 90` — o teto de duração de um bloco quando não há pausa alguma para cortar.
+  O padrão de 45 s é curto de propósito: blocos longos são desproporcionalmente mais lentos
+  e, por concentrarem mais fala numa chamada só, saem com mais erros.
 - `--force` — transcreve de novo por cima de uma transcrição existente.
 
 ## O que ele produz
@@ -47,6 +50,10 @@ e oitenta e quatro"; o mesmo vale para porcentagens. Cada bloco é uma chamada i
 o modelo não mantém convenção entre elas. Já testamos pedir o formato no prompt: ele ignora,
 porque é um modelo de reconhecimento de fala e não de instrução.
 
+**Áudio com música contínua não tem pausa para cortar.** O script então procura o ponto mais
+quieto, com um limiar relaxado, e só corta no seco quando nem isso existe. É o que evita
+partir uma palavra ao meio, o que estragaria o reconhecimento dos dois lados do corte.
+
 **A saída não é reproduzível palavra por palavra.** Rodar duas vezes pode trocar uma palavra
 aqui ou ali. Por isso o `metadata.json` registra modelo, quantização e parâmetros usados — é
 o que permite saber depois como um texto foi gerado.
@@ -61,5 +68,6 @@ a GPU inteira e a execução seguinte não sobe — vale conferir antes de culpa
 
 ## Quanto tempo leva
 
-Cerca de 14× mais rápido que o tempo real no modelo 0.6B: 10 minutos de áudio levam uns 40
-segundos. Vídeos longos escalam de forma linear, porque o custo é por bloco.
+Cerca de 10 a 14× mais rápido que o tempo real no modelo 0.6B: 10 minutos de áudio levam uns
+40 segundos. Vídeos longos escalam de forma linear, porque o custo é por bloco — e é
+justamente por isso que blocos grandes não compensam.
