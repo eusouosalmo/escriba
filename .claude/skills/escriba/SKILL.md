@@ -29,8 +29,35 @@ chamar o pipeline outra vez com a mesma URL: o que já existe responde em segund
 falta é executado.
 
 Isso vale também quando o usuário manda um link que ele já processou antes. A resposta vem
-em poucos segundos e o campo `reused_stages` diz o que foi aproveitado. Vale mencionar, para
-ele não achar que a ferramenta ignorou o pedido.
+em poucos segundos com `reused: true`. Vale mencionar, para ele não achar que a ferramenta
+ignorou o pedido.
+
+## Um post pode trazer vários vídeos
+
+Um carrossel do Instagram mistura fotos e vídeos. O download separa os que têm vídeo, cria
+uma pasta para cada e o pipeline passa todos pelas mesmas etapas. Nesse caso o resultado traz
+`count` com o total e `videos` com a lista completa — os campos de topo descrevem o primeiro.
+
+Ao relatar, diga quantos vídeos havia e onde cada transcrição ficou. Se o usuário pediu "o
+que ele fala", ele provavelmente quer o conteúdo dos vários, não só do primeiro.
+
+Um item que falha — vídeo mudo, arquivo defeituoso — é descartado sem derrubar os outros, e
+aparece em `skipped`. Vale mencionar quais ficaram de fora e por quê.
+
+## Quando não há fala nenhuma
+
+`without_speech` conta os vídeos cuja transcrição saiu vazia, e `speech: false` marca cada um
+deles. Não é falha: é um vídeo com só música, ruído ou silêncio, o que é comum em post de
+rede social.
+
+Diga isso ao usuário com todas as letras. O que ele não pode receber é uma transcrição vazia
+sem explicação, nem — pior — texto inventado. O modelo, diante de áudio sem fala, tende a
+repetir um som de hesitação até encher o limite; esse lixo é detectado e descartado antes de
+virar transcrição, e é por isso que o arquivo fica vazio em vez de conter algo plausível e
+falso.
+
+Nesse caso, ofereça o que ainda dá para aproveitar: a legenda do post costuma trazer o texto
+que o vídeo mostra visualmente, e ela está em `metadata.json`.
 
 ## Quando uma etapa falha
 

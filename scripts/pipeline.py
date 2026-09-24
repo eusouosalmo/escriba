@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _contract import FAILED, fail, log, succeed
+from _contract import ENVIRONMENT, FAILED, fail, log, succeed
 
 SCRIPTS = Path(__file__).resolve().parent
 
@@ -65,65 +65,129 @@ def main() -> None:
     args = parser.parse_args()
 
     started = time.monotonic()
-    results: dict[str, dict] = {}
 
-    for index, (label, script) in enumerate(STAGES, start=1):
-        log(f"[{index}/{len(STAGES)}] {label}")
+    def fail_stage(label: str, payload: dict, code: int) -> None:
+        # O código e a dica da etapa são preservados: ela sabe melhor que o
+        # pipeline o que aconteceu, e reinterpretar aqui só perderia informação.
+        fail(
+            payload.get("error", f"a etapa de {label} falhou"),
+            code=code or FAILED,
+            hint=payload.get("hint"),
+            stage=label,
+            **{k: v for k, v in payload.items() if k not in {"ok", "error", "hint"}},
+        )
 
-        if script == "download.py":
-            arguments = [args.url, "--output-dir", args.output_dir]
-            if args.max_height is not None:
-                arguments += ["--max-height", str(args.max_height)]
-        else:
-            arguments = [results["download"]["folder"]]
-            if script == "transcribe.py":
-                if args.model:
-                    arguments += ["--model", args.model]
-                if args.target is not None:
-                    arguments += ["--target", str(args.target)]
+    log("[1/3] download")
+    arguments = [args.url, "--output-dir", args.output_dir]
+    if args.max_height is not None:
+        arguments += ["--max-height", str(args.max_height)]
+    if args.force:
+        arguments.append("--force")
 
+    download, code = run_stage("download.py", arguments)
+    if code != 0 or not download.get("ok"):
+        fail_stage("download", download, code)
+
+    # Um post pode trazer vários vídeos. Cada um segue o mesmo caminho, e o
+    # caso de um só é apenas a lista de tamanho um.
+    videos = download.get("items") or [download]
+    processed: list[dict] = []
+    reused_any = False
+
+    skipped: list[dict] = []
+
+    def handle(label: str, payload: dict, code: int, folder: str) -> bool:
+        """Decide se uma falha derruba tudo ou apenas descarta este vídeo.
+
+        Num post com vários vídeos, um item mudo ou defeituoso não pode
+        inviabilizar os outros — descartá-lo e seguir preserva o trabalho já
+        feito. Falha de ambiente é exceção: ela vai se repetir em todos, e
+        insistir só produziria a mesma mensagem sete vezes.
+        """
+        if code == 0 and payload.get("ok"):
+            return True
+        if len(videos) == 1 or code == ENVIRONMENT:
+            fail_stage(label, payload, code)
+        log(f"aviso: pulando {folder} — {payload.get('error')}")
+        skipped.append(
+            {"folder": folder, "stage": label, "error": payload.get("error")}
+        )
+        return False
+
+    for number, item in enumerate(videos, start=1):
+        prefix = f" ({number}/{len(videos)})" if len(videos) > 1 else ""
+        folder = item["folder"]
+
+        log(f"[2/3] extração de áudio{prefix}")
+        extract_arguments = [folder] + (["--force"] if args.force else [])
+        extracted, code = run_stage("extract_audio.py", extract_arguments)
+        if not handle("extração de áudio", extracted, code, folder):
+            continue
+
+        log(f"[3/3] transcrição{prefix}")
+        transcribe_arguments = [folder]
+        if args.model:
+            transcribe_arguments += ["--model", args.model]
+        if args.target is not None:
+            transcribe_arguments += ["--target", str(args.target)]
         if args.force:
-            arguments.append("--force")
+            transcribe_arguments.append("--force")
+        transcribed, code = run_stage("transcribe.py", transcribe_arguments)
+        if not handle("transcrição", transcribed, code, folder):
+            continue
 
-        payload, code = run_stage(script, arguments)
+        reused_any = reused_any or all(
+            step.get("reused") for step in (item, extracted, transcribed)
+        )
+        processed.append(
+            {
+                "folder": folder,
+                "title": item.get("title"),
+                "duration": item.get("duration"),
+                "video": item.get("video"),
+                "audio": extracted.get("audio"),
+                "transcript": transcribed.get("transcript"),
+                "srt": transcribed.get("srt"),
+                "json": transcribed.get("json"),
+                "language": transcribed.get("language"),
+                "model": transcribed.get("model"),
+                "speech": transcribed.get("speech"),
+            }
+        )
 
-        if code != 0 or not payload.get("ok"):
-            # O código e a dica da etapa são preservados: ela sabe melhor que o
-            # pipeline o que aconteceu, e reinterpretar aqui só perderia informação.
-            fail(
-                payload.get("error", f"a etapa de {label} falhou"),
-                code=code or FAILED,
-                hint=payload.get("hint"),
-                stage=label,
-                **{k: v for k, v in payload.items() if k not in {"ok", "error", "hint"}},
-            )
-
-        results[script.removesuffix(".py")] = payload
-
-    download, transcribe = results["download"], results["transcribe"]
     elapsed = time.monotonic() - started
 
-    reused = [
-        label
-        for (label, script) in STAGES
-        if results[script.removesuffix(".py")].get("reused")
-    ]
-    if reused:
-        log(f"aproveitado do que já existia: {', '.join(reused)}")
+    if not processed:
+        fail(
+            "nenhum dos vídeos do post pôde ser transcrito",
+            code=FAILED,
+            skipped=skipped,
+        )
+
+    silent = [item for item in processed if item.get("speech") is False]
+    if silent:
+        log(f"{len(silent)} de {len(processed)} vídeo(s) não tinham fala reconhecível")
+    if skipped:
+        log(f"{len(skipped)} vídeo(s) descartado(s) de {len(videos)}")
     log(f"pipeline completo em {elapsed:.0f}s")
 
+    first = processed[0]
     succeed(
-        folder=download["folder"],
-        title=download.get("title"),
-        duration=download.get("duration"),
-        video=download.get("video"),
-        audio=results["extract_audio"].get("audio"),
-        transcript=transcribe.get("transcript"),
-        srt=transcribe.get("srt"),
-        json_file=transcribe.get("json"),
-        language=transcribe.get("language"),
-        model=transcribe.get("model"),
-        reused_stages=reused,
+        folder=first["folder"],
+        title=first["title"],
+        duration=first["duration"],
+        video=first["video"],
+        audio=first["audio"],
+        transcript=first["transcript"],
+        srt=first["srt"],
+        json_file=first["json"],
+        language=first["language"],
+        model=first["model"],
+        videos=processed if len(processed) > 1 else None,
+        count=len(processed),
+        without_speech=len(silent) or None,
+        skipped=skipped or None,
+        reused=reused_any,
         seconds=round(elapsed, 1),
     )
 

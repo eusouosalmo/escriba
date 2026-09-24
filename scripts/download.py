@@ -100,6 +100,11 @@ KNOWN_FAILURES: list[tuple[str, str, str]] = [
         ),
     ),
     (
+        "no video formats found",
+        "Este post não tem vídeo — são só imagens.",
+        "não há áudio para transcrever; mande um link com vídeo",
+    ),
+    (
         "http error 403",
         "O YouTube recusou o download com 403.",
         (
@@ -233,6 +238,13 @@ def build_options(
         # A API Python quer {runtime: {config}} aqui, e não a lista que a
         # linha de comando aceita — formatos diferentes para a mesma opção.
         options["js_runtimes"] = {"node": {"path": node_path}}
+    if not outtmpl:
+        # Só na consulta de metadados: um carrossel do Instagram mistura fotos
+        # e vídeos, e o yt-dlp aborta o post inteiro ao esbarrar numa foto sem
+        # formatos. Tolerar aqui deixa os itens ilegíveis virarem None, para
+        # serem filtrados depois — no download de verdade, erro continua erro.
+        options["ignoreerrors"] = True
+        options["ignore_no_formats_error"] = True
     if outtmpl:
         options["outtmpl"] = outtmpl
         # O fim do vídeo aqui é ser transcrito e consultado, não arquivado em
@@ -275,6 +287,29 @@ def existing_video(folder: Path) -> Path | None:
     return None
 
 
+def video_items(info: dict) -> list[tuple[int, dict]]:
+    """Separa, de um carrossel, os itens que têm vídeo — junto do índice de cada um.
+
+    Um post do Instagram pode misturar fotos e vídeos. O yt-dlp aborta o
+    carrossel inteiro ao esbarrar numa foto, então é preciso escolher de
+    antemão quais posições baixar. O índice é 1-based porque é assim que o
+    `playlist_items` do yt-dlp os endereça.
+    """
+    entries = info.get("entries")
+    if entries is None:
+        return []
+
+    found: list[tuple[int, dict]] = []
+    for position, entry in enumerate(entries, start=1):
+        if not entry:
+            # Item que o extractor não conseguiu ler: quase sempre uma foto.
+            continue
+        formats = entry.get("formats") or []
+        if any((fmt.get("vcodec") or "none") != "none" for fmt in formats) or entry.get("duration"):
+            found.append((position, entry))
+    return found
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Baixa um vídeo e registra sua procedência")
     parser.add_argument("url", help="URL do vídeo")
@@ -311,62 +346,99 @@ def main() -> None:
         description, hint = describe_failure(error)
         fail(description, code=FAILED, hint=hint, url=args.url)
 
-    folder = Path(args.output_dir) / folder_name(info)
-    already = existing_video(folder)
-    if already and not args.force:
-        log(f"já existe em {folder}")
-        succeed(
-            folder=str(folder),
-            video=str(already),
-            title=info.get("title"),
-            duration=info.get("duration"),
-            reused=True,
-        )
+    base = folder_name(info)
+    carousel = video_items(info)
+    if carousel:
+        log(f"carrossel com {len(carousel)} vídeo(s) entre {len(info.get('entries') or [])} itens")
 
-    folder.mkdir(parents=True, exist_ok=True)
-    log(f"baixando para {folder}...")
-    try:
-        options = build_options(
-            node_path, str(folder / "video.%(ext)s"), args.max_height or None
-        )
-        with YoutubeDL(options) as ydl:
-            ydl.download([args.url])
-    except DownloadError as error:
-        description, hint = describe_failure(error)
-        fail(description, code=FAILED, hint=hint, url=args.url, folder=str(folder))
-
-    video = existing_video(folder)
-    if not video:
-        fail(
-            "o download terminou mas nenhum arquivo de vídeo foi encontrado",
-            code=FAILED,
-            folder=str(folder),
-        )
-
-    metadata = {
-        "url": args.url,
-        "platform": platform,
-        "id": info.get("id"),
-        "title": info.get("title"),
-        "uploader": info.get("uploader") or info.get("channel"),
-        "duration_seconds": info.get("duration"),
-        "upload_date": info.get("upload_date"),
-        "downloaded_at": datetime.now(UTC).isoformat(timespec="seconds"),
-        "ytdlp_version": YTDLP_VERSION,
-        "video_file": video.name,
-        "max_height": args.max_height or None,
-    }
-    (folder / "metadata.json").write_text(
-        json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
+    # Um post comum vira uma pasta; um carrossel vira uma pasta por vídeo, e
+    # cada uma delas é indistinguível de um download avulso para as etapas
+    # seguintes — é o que mantém o resto do pipeline sem saber que carrossel existe.
+    plan: list[tuple[Path, dict, int | None]] = (
+        [
+            (Path(args.output_dir) / f"{base}-{index:02d}", entry, position)
+            for index, (position, entry) in enumerate(carousel, start=1)
+        ]
+        if carousel
+        else [(Path(args.output_dir) / base, info, None)]
     )
 
+    produced: list[dict] = []
+    for folder, item, position in plan:
+        already = existing_video(folder)
+        if already and not args.force:
+            log(f"já existe em {folder}")
+            produced.append(
+                {
+                    "folder": str(folder),
+                    "video": str(already),
+                    "title": item.get("title") or info.get("title"),
+                    "duration": item.get("duration"),
+                    "reused": True,
+                }
+            )
+            continue
+
+        folder.mkdir(parents=True, exist_ok=True)
+        log(f"baixando para {folder}...")
+        try:
+            options = build_options(
+                node_path, str(folder / "video.%(ext)s"), args.max_height or None
+            )
+            if position is not None:
+                options["playlist_items"] = str(position)
+            with YoutubeDL(options) as ydl:
+                ydl.download([args.url])
+        except DownloadError as error:
+            description, hint = describe_failure(error)
+            fail(description, code=FAILED, hint=hint, url=args.url, folder=str(folder))
+
+        video = existing_video(folder)
+        if not video:
+            fail(
+                "o download terminou mas nenhum arquivo de vídeo foi encontrado",
+                code=FAILED,
+                folder=str(folder),
+            )
+
+        metadata = {
+            "url": args.url,
+            "platform": platform,
+            "id": item.get("id") or info.get("id"),
+            "title": item.get("title") or info.get("title"),
+            "uploader": info.get("uploader") or info.get("channel"),
+            "duration_seconds": item.get("duration"),
+            "upload_date": info.get("upload_date"),
+            "downloaded_at": datetime.now(UTC).isoformat(timespec="seconds"),
+            "ytdlp_version": YTDLP_VERSION,
+            "video_file": video.name,
+            "max_height": args.max_height or None,
+        }
+        if position is not None:
+            metadata["carousel_position"] = position
+        (folder / "metadata.json").write_text(
+            json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+        produced.append(
+            {
+                "folder": str(folder),
+                "video": str(video),
+                "title": metadata["title"],
+                "duration": metadata["duration_seconds"],
+                "reused": False,
+            }
+        )
+
+    first = produced[0]
     succeed(
-        folder=str(folder),
-        video=str(video),
-        title=metadata["title"],
-        duration=metadata["duration_seconds"],
-        reused=False,
+        folder=first["folder"],
+        video=first["video"],
+        title=first["title"],
+        duration=first["duration"],
+        reused=all(item["reused"] for item in produced),
+        items=produced,
     )
 
 

@@ -119,6 +119,14 @@ class TestKnownFailures:
 
         assert "yt-dlp" in hint
 
+    def test_a_post_without_video_says_so_plainly(self):
+        description, hint = download.describe_failure(
+            Exception("ERROR: [Instagram] abc: No video formats found!")
+        )
+
+        assert "não tem vídeo" in description
+        assert "transcrever" in hint
+
     def test_the_403_hint_points_at_the_real_cause(self):
         _, hint = download.describe_failure(Exception("HTTP Error 403: Forbidden"))
         assert "yt-dlp" in hint
@@ -127,6 +135,47 @@ class TestKnownFailures:
         description, hint = download.describe_failure(Exception("algo totalmente novo"))
         assert description == "algo totalmente novo"
         assert hint is None
+
+
+class TestCarousel:
+    """Um post do Instagram pode misturar fotos e vídeos na mesma URL."""
+
+    def test_a_single_video_post_is_not_treated_as_a_carousel(self):
+        assert download.video_items({"id": "abc", "formats": [{"vcodec": "h264"}]}) == []
+
+    def test_picks_only_the_entries_that_actually_have_video(self):
+        info = {
+            "entries": [
+                {"id": "foto", "formats": [{"vcodec": "none", "acodec": "none"}]},
+                {"id": "video", "formats": [{"vcodec": "h264"}]},
+            ]
+        }
+
+        found = download.video_items(info)
+
+        assert [entry["id"] for _, entry in found] == ["video"]
+
+    def test_skips_entries_the_extractor_could_not_read(self):
+        """Itens ilegíveis viram None e são quase sempre fotos."""
+        info = {"entries": [None, {"id": "video", "duration": 12}, None]}
+
+        found = download.video_items(info)
+
+        assert len(found) == 1
+
+    def test_keeps_the_original_position_because_that_is_how_ytdlp_addresses_them(self):
+        info = {
+            "entries": [
+                None,
+                {"id": "foto", "formats": []},
+                {"id": "video", "formats": [{"vcodec": "h264"}]},
+            ]
+        }
+
+        (position, entry), = download.video_items(info)
+
+        assert position == 3, "posição é 1-based e conta os itens pulados"
+        assert entry["id"] == "video"
 
 
 class TestQualityCeiling:

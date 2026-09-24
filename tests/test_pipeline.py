@@ -152,7 +152,10 @@ class TestFailurePropagation:
 
 
 class TestResumption:
-    def test_reports_which_stages_were_reused(self, monkeypatch, capsys):
+    """Com vários vídeos por post, "quais etapas" deixou de ter resposta única —
+    daí o resultado dizer apenas se havia algo pronto para aproveitar."""
+
+    def test_says_nothing_was_redone_when_everything_already_existed(self, monkeypatch, capsys):
         responses = {
             script: ({**payload, "reused": True}, code)
             for script, (payload, code) in SUCCESSFUL.items()
@@ -161,17 +164,158 @@ class TestResumption:
 
         run_main(monkeypatch)
 
-        payload = json.loads(capsys.readouterr().out)
-        assert payload["reused_stages"] == ["download", "extração de áudio", "transcrição"]
+        assert json.loads(capsys.readouterr().out)["reused"] is True
 
-    def test_a_partially_done_run_reports_only_what_was_reused(self, monkeypatch, capsys):
+    def test_a_partially_done_run_still_counts_as_work_performed(self, monkeypatch, capsys):
+        """Só o download estava pronto; áudio e transcrição rodaram de verdade."""
         responses = dict(SUCCESSFUL)
         responses["download.py"] = ({**SUCCESSFUL["download.py"][0], "reused": True}, 0)
         fake_stages(monkeypatch, responses)
 
         run_main(monkeypatch)
 
-        assert json.loads(capsys.readouterr().out)["reused_stages"] == ["download"]
+        assert json.loads(capsys.readouterr().out)["reused"] is False
+
+
+class TestCarousel:
+    """Um post com vários vídeos passa cada um pelas mesmas etapas."""
+
+    def test_runs_the_later_stages_once_per_video(self, monkeypatch, capsys):
+        responses = dict(SUCCESSFUL)
+        responses["download.py"] = (
+            {
+                "ok": True,
+                "folder": "downloads/post-01",
+                "items": [
+                    {"folder": "downloads/post-01", "video": "downloads/post-01/video.mp4",
+                     "title": "Post", "duration": 10},
+                    {"folder": "downloads/post-02", "video": "downloads/post-02/video.mp4",
+                     "title": "Post", "duration": 12},
+                ],
+            },
+            0,
+        )
+        calls = fake_stages(monkeypatch, responses)
+
+        run_main(monkeypatch)
+
+        scripts = [script for script, _ in calls]
+        assert scripts.count("extract_audio.py") == 2
+        assert scripts.count("transcribe.py") == 2
+        assert calls[1][1][0] == "downloads/post-01"
+        assert calls[3][1][0] == "downloads/post-02"
+
+    def test_reports_every_video_it_produced(self, monkeypatch, capsys):
+        responses = dict(SUCCESSFUL)
+        responses["download.py"] = (
+            {
+                "ok": True,
+                "folder": "downloads/post-01",
+                "items": [
+                    {"folder": "downloads/post-01", "title": "Post"},
+                    {"folder": "downloads/post-02", "title": "Post"},
+                ],
+            },
+            0,
+        )
+        fake_stages(monkeypatch, responses)
+
+        run_main(monkeypatch)
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["count"] == 2
+        assert len(payload["videos"]) == 2
+        assert payload["folder"] == "downloads/post-01"
+
+    def test_one_silent_video_does_not_sink_the_others(self, monkeypatch, capsys):
+        """Num carrossel real, o sexto vídeo não tinha faixa de áudio e derrubava o post inteiro."""
+        calls_seen: list[str] = []
+
+        def run_stage(script: str, arguments: list[str]):
+            calls_seen.append(f"{script}:{arguments[0]}")
+            if script == "extract_audio.py" and arguments[0].endswith("-02"):
+                return {"ok": False, "error": "video.mp4 não tem faixa de áudio"}, 1
+            if script == "download.py":
+                return (
+                    {
+                        "ok": True,
+                        "folder": "downloads/post-01",
+                        "items": [
+                            {"folder": "downloads/post-01", "title": "Post"},
+                            {"folder": "downloads/post-02", "title": "Post"},
+                            {"folder": "downloads/post-03", "title": "Post"},
+                        ],
+                    },
+                    0,
+                )
+            return SUCCESSFUL[script]
+
+        monkeypatch.setattr(pipeline, "run_stage", run_stage)
+        run_main(monkeypatch)
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["ok"] is True
+        assert payload["count"] == 2, "os dois vídeos sadios precisam sobreviver"
+        assert payload["skipped"][0]["folder"] == "downloads/post-02"
+        assert "transcribe.py:downloads/post-03" in calls_seen
+
+    def test_an_environment_failure_stops_everything_instead_of_repeating(
+        self, monkeypatch, capsys
+    ):
+        """Falta de ffmpeg vai falhar em todos; insistir só repetiria a mensagem."""
+
+        def run_stage(script: str, arguments: list[str]):
+            if script == "download.py":
+                return (
+                    {
+                        "ok": True,
+                        "folder": "downloads/post-01",
+                        "items": [
+                            {"folder": "downloads/post-01"},
+                            {"folder": "downloads/post-02"},
+                        ],
+                    },
+                    0,
+                )
+            return {"ok": False, "error": "ffmpeg não foi encontrado"}, 3
+
+        monkeypatch.setattr(pipeline, "run_stage", run_stage)
+        exit_signal = run_main(monkeypatch)
+
+        assert exit_signal.code == 3
+
+    def test_a_post_where_nothing_works_is_a_failure_not_an_empty_success(
+        self, monkeypatch, capsys
+    ):
+        def run_stage(script: str, arguments: list[str]):
+            if script == "download.py":
+                return (
+                    {
+                        "ok": True,
+                        "folder": "downloads/post-01",
+                        "items": [
+                            {"folder": "downloads/post-01"},
+                            {"folder": "downloads/post-02"},
+                        ],
+                    },
+                    0,
+                )
+            return {"ok": False, "error": "sem faixa de áudio"}, 1
+
+        monkeypatch.setattr(pipeline, "run_stage", run_stage)
+        exit_signal = run_main(monkeypatch)
+
+        assert exit_signal.code == 1
+        assert "nenhum dos vídeos" in json.loads(capsys.readouterr().out)["error"]
+
+    def test_a_single_video_does_not_grow_a_videos_list(self, monkeypatch, capsys):
+        fake_stages(monkeypatch, SUCCESSFUL)
+
+        run_main(monkeypatch)
+
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["count"] == 1
+        assert payload["videos"] is None
 
 
 class TestCommandLine:

@@ -286,7 +286,7 @@ class Server:
 # ------------------------------------------------------------ pós-processo
 
 
-def clean(raw: str) -> tuple[str, str | None]:
+def clean(raw: str, duration: float | None = None) -> tuple[str, str | None]:
     """Extrai o texto da resposta e remove o que o modelo repetiu sem motivo.
 
     Modelos de ASR entram em laço quando o áudio é ambíguo — música, ruído, um
@@ -298,10 +298,42 @@ def clean(raw: str) -> tuple[str, str | None]:
 
     match = ASR_PATTERN.search(raw)
     text = match.group(1) if match else LANGUAGE_PATTERN.sub("", raw)
-    return collapse_repetitions(text.strip()), language
+    return collapse_repetitions(text.strip(), duration=duration), language
 
 
-def collapse_repetitions(text: str, threshold: int = 3) -> str:
+def is_degenerate(text: str, duration: float | None = None) -> bool:
+    """Reconhece a saída que um ASR produz quando não há fala no áudio.
+
+    Um vídeo com só música ou só ruído não tem o que transcrever, mas o modelo
+    responde assim mesmo. Isso aparece de duas formas, e as duas se detectam
+    sem olhar o idioma:
+
+    A primeira é o laço — repetir um som de hesitação até encher o limite de
+    tokens. O sinal é a pobreza: muitos caracteres, pouquíssimos distintos.
+
+    A segunda é o oposto, quase nada: meia dúzia de caracteres para meio minuto
+    de áudio. Fala real rende algo em torno de dez caracteres por segundo, então
+    essa densidade denuncia que não havia o que ouvir.
+    """
+    compact = re.sub(r"\s+", "", text)
+    if not compact:
+        return False
+    if len(compact) >= 16 and len(set(compact)) <= 4:
+        return True
+    return bool(duration and duration >= 5 and len(compact) <= 3)
+
+
+def collapse_repetitions(text: str, threshold: int = 3, duration: float | None = None) -> str:
+    # Uma alucinação de áudio mudo não sobrevive à divisão por frases, porque
+    # ela não tem pontuação alguma. Descartar o texto inteiro é o certo aqui:
+    # não havia fala, então qualquer coisa que reste seria invenção.
+    if is_degenerate(text, duration):
+        return ""
+
+    # Colapsa a mesma palavra repetida em sequência, que é a forma mais comum
+    # de laço curto — "e e e e e" vira "e".
+    text = re.sub(r"\b(\w+)(\s+\1\b){2,}", r"\1", text, flags=re.IGNORECASE)
+
     sentences = re.split(r"(?<=[.!?])\s+", text)
     kept: list[str] = []
     for sentence in sentences:
@@ -429,6 +461,7 @@ def main() -> None:
             model=previous.get("transcription_model"),
             language=previous.get("language"),
             chunks=previous.get("transcription_chunks"),
+            speech=bool((previous.get("text") or "").strip()),
             reused=True,
         )
 
@@ -461,7 +494,7 @@ def main() -> None:
                     details=str(error)[:300],
                     folder=str(folder),
                 )
-            chunk.text, detected = clean(raw)
+            chunk.text, detected = clean(raw, chunk.duration)
             language = language or detected
             piece.unlink(missing_ok=True)
             log(f"chunk {index}/{len(chunks)} ({chunk.duration:.0f}s)")
@@ -483,6 +516,10 @@ def main() -> None:
     write_outputs(folder, chunks, language, meta)
     update_metadata(folder, meta)
 
+    spoke = any(chunk.text for chunk in chunks)
+    if not spoke:
+        log("nenhuma fala reconhecida — o áudio provavelmente é só música ou ruído")
+
     log(f"pronto em {elapsed:.0f}s ({duration / elapsed:.1f}x tempo real)")
     succeed(
         folder=str(folder),
@@ -492,6 +529,7 @@ def main() -> None:
         model=model_name,
         language=language,
         chunks=len(chunks),
+        speech=spoke,
         seconds=round(elapsed, 1),
         reused=False,
     )

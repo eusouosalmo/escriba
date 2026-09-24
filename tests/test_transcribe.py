@@ -101,6 +101,20 @@ class TestResponseCleaning:
         assert cleaned.startswith("Início.")
         assert cleaned.endswith("Fim.")
 
+    def test_discards_the_hallucination_a_silent_video_produces(self):
+        """Um Reel só com música fez o modelo devolver centenas de 嗯 — não havia fala."""
+        assert transcribe.collapse_repetitions("嗯" * 400) == ""
+        # Dois caracteres para trinta segundos de áudio: não havia fala.
+        assert transcribe.collapse_repetitions("嗯。", duration=30) == ""
+
+    def test_collapses_a_word_looped_in_sequence(self):
+        assert transcribe.collapse_repetitions("e e e e e e pronto.") == "e pronto."
+
+    def test_does_not_discard_a_short_but_real_transcription(self):
+        """Textos curtos de verdade têm variedade; o critério é a pobreza, não o tamanho."""
+        assert transcribe.collapse_repetitions("Oi, tudo bem?", duration=30) == "Oi, tudo bem?"
+        assert transcribe.collapse_repetitions("Bom dia.", duration=3) == "Bom dia."
+
     def test_keeps_a_phrase_that_genuinely_repeats_a_couple_of_times(self):
         text = "Ele disse não. Ela respondeu sim. Ele disse não."
 
