@@ -1,4 +1,12 @@
-# escriba
+<p align="center">
+  <img src="assets/logo.png" alt="escriba" width="150">
+</p>
+
+<h1 align="center">escriba</h1>
+
+<p align="center">
+  <em>Vídeo entra, texto sai — tudo na sua máquina.</em>
+</p>
 
 O escriba registra por escrito o que foi falado. Este aqui faz isso com vídeo da internet: você dá um link do YouTube ou do Instagram, ele baixa, transcreve o áudio localmente e guarda tudo junto — vídeo, áudio e transcrição na mesma pasta.
 
